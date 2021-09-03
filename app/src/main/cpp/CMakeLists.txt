@@ -14,6 +14,9 @@ project("openglfreetypedemo")
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 
+
+
+
 add_library( # Sets the name of the library.
              native-lib
 
@@ -22,6 +25,14 @@ add_library( # Sets the name of the library.
 
              # Provides a relative path to your source file(s).
              native-lib.cpp )
+
+add_library(freetype SHARED IMPORTED)
+set_target_properties(freetype
+        PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_SOURCE_DIR}/freetype/lib/android/${ANDROID_ABI}/libfreetype.so)
+
+include_directories(
+        ${CMAKE_SOURCE_DIR}/freetype/include )
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -44,6 +55,7 @@ target_link_libraries( # Specifies the target library.
                        native-lib
                         android
                         GLESv2 EGL
+                        freetype
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )

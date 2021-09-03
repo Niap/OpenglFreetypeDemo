@@ -1,11 +1,10 @@
 package top.niap.openglfreetypedemo
 
+import android.content.res.AssetManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.widget.TextView
+import android.view.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -14,6 +13,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        initAsserts(getApplicationContext().resources.assets)
 
         glSurfaceView =  findViewById<SurfaceView>(R.id.surfaceView)
 
@@ -37,6 +38,8 @@ class MainActivity : AppCompatActivity() {
      * which is packaged with this application.
      */
     external fun nativeSetView(surface: Surface)
+
+    external fun initAsserts(assertManager: AssetManager?)
 
     companion object {
         // Used to load the 'native-lib' library on application startup.
