@@ -32,7 +32,8 @@ set_target_properties(freetype
         ${CMAKE_SOURCE_DIR}/freetype/lib/android/${ANDROID_ABI}/libfreetype.so)
 
 include_directories(
-        ${CMAKE_SOURCE_DIR}/freetype/include )
+        ${CMAKE_SOURCE_DIR}/freetype/include
+        ${CMAKE_SOURCE_DIR}/glm)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

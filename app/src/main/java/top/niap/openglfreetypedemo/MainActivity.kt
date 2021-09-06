@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun surfaceChanged(surfaceHolder: SurfaceHolder, i: Int, width: Int, height: Int) {
-
+                nativeSetViewSize(width,height);
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
      * which is packaged with this application.
      */
     external fun nativeSetView(surface: Surface)
+
+    external fun nativeSetViewSize(width: Int,height:Int)
 
     external fun initAsserts(assertManager: AssetManager?)
 
