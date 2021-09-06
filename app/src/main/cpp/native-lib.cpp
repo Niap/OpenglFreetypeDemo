@@ -10,17 +10,26 @@
 
 #define GET_STR(x) #x
 static const char *textVertexShader = GET_STR(
-        attribute vec4 position;
+        attribute vec4 aPosition;
+        attribute
+        vec2 aTextCoord;//输入的纹理坐标，会在程序指定将数据输入到该字段
+        varying
+        vec2 vTextCoord;
         void main() {
-            gl_Position = position;
+            vTextCoord =  vec2( aTextCoord.x, 1.0-aTextCoord.y);;
+            gl_Position = aPosition;
         }
 );
 
 
 static const char *textFragmentShader = GET_STR(
-        void main()
-        {
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        varying
+        vec2 vTextCoord;
+        uniform
+        sampler2D yTexture;
+        void main() {
+            vec4 sampled = vec4(1.0, 1.0, 1.0, texture2D(yTexture, vTextCoord).a);
+            gl_FragColor =  vec4(1.0,0.0,0.0,1.0)*sampled;
         }
 );
 
@@ -62,6 +71,8 @@ static int CreateShader(const std::string& vertexShader,const std::string& fragm
     glDeleteShader(fs);
     return program;
 }
+
+static FT_Face g_face;
 
 extern "C" JNIEXPORT void JNICALL
 Java_top_niap_openglfreetypedemo_MainActivity_nativeSetView(JNIEnv* env, jobject obj, jobject surface) {
@@ -107,29 +118,75 @@ Java_top_niap_openglfreetypedemo_MainActivity_nativeSetView(JNIEnv* env, jobject
         printf("eglMakeCurrent failed");
     }
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    unsigned int shader = CreateShader(textVertexShader,textFragmentShader);
+    glUseProgram(shader);
+
     //draw call
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
     float positions[] = {
-            -0.5f,-0.5f,
-            0.5f,-0.5f,
-            0.5f,0.5f,
-            0.5f,0.5f,
-            -0.5f,0.5f,
-            -0.5f,-0.5f
+            -0.5f,-0.5f,0.0f,
+            -0.5f,0.5f,0.0f,
+            0.5f,0.5f,0.0f,
+            -0.5f,-0.5f,0.0f,
+            0.5f,0.5f,0.0f,
+            0.5f,-0.5f,0.0f,
     };
 
-    unsigned int buffer;
-    glGenBuffers(1,&buffer);
-    glBindBuffer(GL_ARRAY_BUFFER,buffer);
-    glBufferData(GL_ARRAY_BUFFER,12*sizeof(float),positions,GL_STATIC_DRAW);
+    GLuint apos = static_cast<GLuint>(glGetAttribLocation(shader, "aPosition"));
+    glEnableVertexAttribArray(apos);
+    glVertexAttribPointer(apos, 3, GL_FLOAT, GL_FALSE, 0, positions);
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,2*sizeof(float),0);
+    static float textCoord[] = {
+            0.0f, 0.0f,
+            0.0f, 1.0f,
+            1.0f, 1.0f,
+            0.0f, 0.0f,
+            1.0f, 1.0f,
+            1.0f, 0.0f
+    };
 
-    unsigned int shader = CreateShader(textVertexShader,textFragmentShader);
-    glUseProgram(shader);
+    GLuint aTex = static_cast<GLuint>(glGetAttribLocation(shader, "aTextCoord"));
+    glEnableVertexAttribArray(aTex);
+    glVertexAttribPointer(aTex, 2, GL_FLOAT, GL_FALSE, 0, textCoord);
+
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    GLint tTexture = glGetUniformLocation(shader,"yTexture");
+
+    unsigned int texture;
+    glActiveTexture(GL_TEXTURE0);
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    FT_Set_Pixel_Sizes(g_face, 0, 48);
+    char * chinese_str = "aaa";
+    FT_Load_Char(g_face, chinese_str[0], FT_LOAD_RENDER);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_ALPHA,
+        g_face->glyph->bitmap.width,
+        g_face->glyph->bitmap.rows,
+        0,
+        GL_ALPHA,
+        GL_UNSIGNED_BYTE,
+        g_face->glyph->bitmap.buffer
+    );
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glUniform1i(tTexture, 0);
+
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 6);
     eglSwapBuffers(mDisplay, mWinSurface);
@@ -146,7 +203,6 @@ Java_top_niap_openglfreetypedemo_MainActivity_initAsserts(JNIEnv *env, jobject t
     if (FT_Init_FreeType(&ft))
         printf("ERROR::FREETYPE: Could not init FreeType Library");
 
-    FT_Face face;
 
     if(g_pAssetManager){
         AAsset* fontAsset = AAssetManager_open(g_pAssetManager, "arial.ttf", AASSET_MODE_UNKNOWN);
@@ -156,7 +212,7 @@ Java_top_niap_openglfreetypedemo_MainActivity_initAsserts(JNIEnv *env, jobject t
             char* buffer = (char*) malloc(assetLength);
             AAsset_read(fontAsset, buffer, assetLength);
             AAsset_close(fontAsset);
-            FT_New_Memory_Face(ft,(const FT_Byte *)buffer,assetLength,0,&face);
+            FT_New_Memory_Face(ft,(const FT_Byte *)buffer,assetLength,0,&g_face);
         }
 
     }
